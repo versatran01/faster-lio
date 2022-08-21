@@ -48,17 +48,6 @@ int main(int argc, char **argv) {
 
     LOG(INFO) << "Go!";
     for (const rosbag::MessageInstance &m : rosbag::View(bag)) {
-        auto livox_msg = m.instantiate<livox_ros_driver::CustomMsg>();
-        if (livox_msg) {
-            faster_lio::Timer::Evaluate(
-                [&laser_mapping, &livox_msg]() {
-                    laser_mapping->LivoxPCLCallBack(livox_msg);
-                    laser_mapping->Run();
-                },
-                "Laser Mapping Single Run");
-            continue;
-        }
-
         auto point_cloud_msg = m.instantiate<sensor_msgs::PointCloud2>();
         if (point_cloud_msg) {
             faster_lio::Timer::Evaluate(

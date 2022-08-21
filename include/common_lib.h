@@ -1,6 +1,7 @@
 #ifndef COMMON_LIB_H
 #define COMMON_LIB_H
 
+#include <deque>
 #include <eigen_conversions/eigen_msg.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>

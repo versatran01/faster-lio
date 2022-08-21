@@ -234,13 +234,9 @@ void LaserMapping::SubAndPubToROS(ros::NodeHandle &nh) {
     nh.param<std::string>("common/lid_topic", lidar_topic, "/livox/lidar");
     nh.param<std::string>("common/imu_topic", imu_topic, "/livox/imu");
 
-    if (preprocess_->GetLidarType() == LidarType::AVIA) {
-        sub_pcl_ = nh.subscribe<livox_ros_driver::CustomMsg>(
-            lidar_topic, 200000, [this](const livox_ros_driver::CustomMsg::ConstPtr &msg) { LivoxPCLCallBack(msg); });
-    } else {
-        sub_pcl_ = nh.subscribe<sensor_msgs::PointCloud2>(
+    sub_pcl_ = nh.subscribe<sensor_msgs::PointCloud2>(
             lidar_topic, 200000, [this](const sensor_msgs::PointCloud2::ConstPtr &msg) { StandardPCLCallBack(msg); });
-    }
+    
 
     sub_imu_ = nh.subscribe<sensor_msgs::Imu>(imu_topic, 200000,
                                               [this](const sensor_msgs::Imu::ConstPtr &msg) { IMUCallBack(msg); });
@@ -371,41 +367,6 @@ void LaserMapping::StandardPCLCallBack(const sensor_msgs::PointCloud2::ConstPtr 
     mtx_buffer_.unlock();
 }
 
-void LaserMapping::LivoxPCLCallBack(const livox_ros_driver::CustomMsg::ConstPtr &msg) {
-    mtx_buffer_.lock();
-    Timer::Evaluate(
-        [&, this]() {
-            scan_count_++;
-            if (msg->header.stamp.toSec() < last_timestamp_lidar_) {
-                LOG(WARNING) << "lidar loop back, clear buffer";
-                lidar_buffer_.clear();
-            }
-
-            last_timestamp_lidar_ = msg->header.stamp.toSec();
-
-            if (!time_sync_en_ && abs(last_timestamp_imu_ - last_timestamp_lidar_) > 10.0 && !imu_buffer_.empty() &&
-                !lidar_buffer_.empty()) {
-                LOG(INFO) << "IMU and LiDAR not Synced, IMU time: " << last_timestamp_imu_
-                          << ", lidar header time: " << last_timestamp_lidar_;
-            }
-
-            if (time_sync_en_ && !timediff_set_flg_ && abs(last_timestamp_lidar_ - last_timestamp_imu_) > 1 &&
-                !imu_buffer_.empty()) {
-                timediff_set_flg_ = true;
-                timediff_lidar_wrt_imu_ = last_timestamp_lidar_ + 0.1 - last_timestamp_imu_;
-                LOG(INFO) << "Self sync IMU and LiDAR, time diff is " << timediff_lidar_wrt_imu_;
-            }
-
-            PointCloudType::Ptr ptr(new PointCloudType());
-            preprocess_->Process(msg, ptr);
-            lidar_buffer_.emplace_back(ptr);
-            time_buffer_.emplace_back(last_timestamp_lidar_);
-        },
-        "Preprocess (Livox)");
-
-    mtx_buffer_.unlock();
-}
-
 void LaserMapping::IMUCallBack(const sensor_msgs::Imu::ConstPtr &msg_in) {
     publish_count_++;
     sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
@@ -491,7 +452,9 @@ void LaserMapping::MapIncremental() {
         index[i] = i;
     }
 
-    std::for_each(std::execution::unseq, index.begin(), index.end(), [&](const size_t &i) {
+    std::for_each(
+        // std::execution::unseq, 
+        index.begin(), index.end(), [&](const size_t &i) {
         /* transform to world frame */
         PointBodyToWorld(&(scan_down_body_->points[i]), &(scan_down_world_->points[i]));
 
@@ -559,7 +522,9 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
             auto t_wl = (s.rot * s.offset_T_L_I + s.pos).cast<float>();
 
             /** closest surface search and residual computation **/
-            std::for_each(std::execution::par_unseq, index.begin(), index.end(), [&](const size_t &i) {
+            std::for_each(
+                // std::execution::par_unseq, 
+                index.begin(), index.end(), [&](const size_t &i) {
                 PointType &point_body = scan_down_body_->points[i];
                 PointType &point_world = scan_down_world_->points[i];
 
@@ -627,7 +592,9 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
             const common::V3F off_t = s.offset_T_L_I.cast<float>();
             const common::M3F Rt = s.rot.toRotationMatrix().transpose().cast<float>();
 
-            std::for_each(std::execution::par_unseq, index.begin(), index.end(), [&](const size_t &i) {
+            std::for_each(
+                // std::execution::par_unseq, 
+                index.begin(), index.end(), [&](const size_t &i) {
                 common::V3F point_this_be = corr_pts_[i].head<3>();
                 common::M3F point_be_crossmat = SKEW_SYM_MATRIX(point_this_be);
                 common::V3F point_this = off_R * point_this_be + off_t;
