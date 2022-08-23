@@ -1,7 +1,8 @@
 #include <tf/transform_broadcaster.h>
 #include <yaml-cpp/yaml.h>
-#include <execution>
+// #include <execution>
 #include <fstream>
+#include <tbb/parallel_for.h>
 
 #include "laser_mapping.h"
 #include "utils.h"
@@ -522,9 +523,12 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
             auto t_wl = (s.rot * s.offset_T_L_I + s.pos).cast<float>();
 
             /** closest surface search and residual computation **/
-            std::for_each(
+            tbb::parallel_for(
                 // std::execution::par_unseq, 
-                index.begin(), index.end(), [&](const size_t &i) {
+                tbb::blocked_range<size_t>(0, index.size()),
+                // index.begin(), index.end(), 
+                [&](const auto& block) {
+                    for (size_t i = block.begin(); i < block.end(); ++i) {
                 PointType &point_body = scan_down_body_->points[i];
                 PointType &point_world = scan_down_world_->points[i];
 
@@ -554,6 +558,7 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
                         point_selected_surf_[i] = true;
                         residuals_[i] = pd2;
                     }
+                }
                 }
             });
         },
@@ -592,9 +597,12 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
             const common::V3F off_t = s.offset_T_L_I.cast<float>();
             const common::M3F Rt = s.rot.toRotationMatrix().transpose().cast<float>();
 
-            std::for_each(
+            tbb::parallel_for(
                 // std::execution::par_unseq, 
-                index.begin(), index.end(), [&](const size_t &i) {
+                tbb::blocked_range<size_t>(0, index.size()),
+                // index.begin(), index.end(), 
+                [&](const auto &block) {
+                    for (size_t i = block.begin(); i < block.end(); ++i) {
                 common::V3F point_this_be = corr_pts_[i].head<3>();
                 common::M3F point_be_crossmat = SKEW_SYM_MATRIX(point_this_be);
                 common::V3F point_this = off_R * point_this_be + off_t;
@@ -618,6 +626,7 @@ void LaserMapping::ObsModel(state_ikfom &s, esekfom::dyn_share_datastruct<double
 
                 /*** Measurement: distance to the closest surface/corner ***/
                 ekfom_data.h(i) = -corr_pts_[i][3];
+                    }
             });
         },
         "    ObsModel (IEKF Build Jacobian)");

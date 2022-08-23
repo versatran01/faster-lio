@@ -8,11 +8,11 @@ include_directories(${Glog_INCLUDE_DIRS})
 # https://github.com/oneapi-src/oneTBB/releases/download/2018/tbb2018_20170726oss_lin.tgz,
 # extract it into CUSTOM_TBB_DIR 
 # specifiy tbb2018, e.g. CUSTOM_TBB_DIR=/home/idriver/Documents/tbb2018_20170726oss
-set(TBB2018_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/thirdparty/tbb2018_20170726oss/include")
-set(TBB2018_LIBRARY_DIR "${CMAKE_SOURCE_DIR}/thirdparty/tbb2018_20170726oss/lib/intel64/gcc4.7")
-include_directories(${TBB2018_INCLUDE_DIR})
-link_directories(${TBB2018_LIBRARY_DIR})
-# find_package(TBB REQUIRED)
+# set(TBB2018_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/thirdparty/tbb2018_20170726oss/include")
+# set(TBB2018_LIBRARY_DIR "${CMAKE_SOURCE_DIR}/thirdparty/tbb2018_20170726oss/lib/intel64/gcc4.7")
+# include_directories(${TBB2018_INCLUDE_DIR})
+# link_directories(${TBB2018_LIBRARY_DIR})
+find_package(TBB REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
         geometry_msgs

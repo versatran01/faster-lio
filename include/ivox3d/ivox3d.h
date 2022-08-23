@@ -6,9 +6,10 @@
 #define FASTER_LIO_IVOX3D_H
 
 #include <glog/logging.h>
-#include <execution>
+// #include <execution>
 #include <list>
 #include <thread>
+#include <tbb/parallel_for.h>
 
 #include "eigen_types.h"
 #include "ivox3d_node.hpp"
@@ -242,15 +243,28 @@ bool IVox<dim, node_type, PointType>::GetClosestPoint(const PointVector& cloud, 
     }
     closest_cloud.resize(cloud.size());
 
-    std::for_each(
-        // std::execution::par_unseq, 
-        index.begin(), index.end(), [&cloud, &closest_cloud, this](size_t idx) {
-        PointType pt;
-        if (GetClosestPoint(cloud[idx], pt)) {
-            closest_cloud[idx] = pt;
-        } else {
-            closest_cloud[idx] = PointType();
-        }
+    // std::for_each(
+    //     std::execution::par_unseq, 
+    //     index.begin(), index.end(), [&cloud, &closest_cloud, this](size_t idx) {
+    //     PointType pt;
+    //     if (GetClosestPoint(cloud[idx], pt)) {
+    //         closest_cloud[idx] = pt;
+    //     } else {
+    //         closest_cloud[idx] = PointType();
+    //     }
+    // });
+
+    tbb::parallel_for(
+        tbb::blocked_range<size_t>(0, cloud.size()), 
+        [&cloud, &closest_cloud, this](const auto& block) {
+            for (size_t idx = block.begin(); idx < block.end(); ++idx) {
+                PointType pt;
+                if (GetClosestPoint(cloud[idx], pt)) {
+                    closest_cloud[idx] = pt;
+                } else {
+                    closest_cloud[idx] = PointType();
+                }
+            }
     });
     return true;
 }
