@@ -33,3 +33,8 @@
 
 build/
 *.pcd
+
+
+# PyCharm
+*.idea*
+*__pycache__*
