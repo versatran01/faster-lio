@@ -16,7 +16,7 @@ def load_evaluation(basedir: str, dataset: str, method: str, normalize_traj: boo
 
 
 if __name__ == "__main__":
-    traj_norm = True
+    traj_norm = False
 
     # LOAD DATA
 

@@ -138,6 +138,12 @@ class EvalMethod:
         self.method_list = []
         self.results_dict = {}
 
+        # Threshold for maximum difference in timestamps for sync
+        self.evo_config_t_max_diff = 0.05
+
+        # Threshold for minimum ratio of valid poses after sync
+        self.evo_config_pose_ratio = 0.8
+
         self.save_dir = Path(f"{self.base_dir}/{self.dataset}/{self.method}/eval")
         self.save_dir.mkdir(exist_ok=True, parents=True)
 
@@ -160,8 +166,13 @@ class EvalMethod:
         traj_ref = file_interface.read_tum_trajectory_file(gt_path)
         traj_method = file_interface.read_tum_trajectory_file(method_path)
 
-        traj_ref, traj_method = sync.associate_trajectories(traj_ref, traj_method)
-        traj_method.align(traj_ref)
+        # Trajectories are associated using timestamps and a threshold
+        traj_ref, traj_method = sync.associate_trajectories(traj_ref, traj_method, self.evo_config_t_max_diff)
+
+        # Alignment is calculated in closed form using Umeyama's method [Umeyama-1991]
+        traj_method.align(traj_ref, correct_scale=False, correct_only_scale=False)
+
+        assert (traj_ref.num_poses / traj_method.num_poses > self.evo_config_pose_ratio)
 
         ape_metric_method = metrics.APE(metrics.PoseRelation.translation_part)
         ape_metric_method.process_data((traj_ref, traj_method))
